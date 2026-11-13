@@ -105,3 +105,28 @@ test("chainIsActive needs the switch and a runnable step", async () => {
   );
   assert.equal(chainIsActive({ enabled: true, requireApproval: true, steps: [ready] }), true);
 });
+
+test("revision uses the last runnable step's model and keeps its style", async () => {
+  const { createStep, revisionStep, buildRevisionRequest, wrapRevisionInput } = await load();
+  const first = createStep({ name: "A", inference: { mode: "local", model: "small" } });
+  const last = createStep({
+    name: "B",
+    prompt: "Sound corporate.",
+    inference: { mode: "providers", provider: "gemini", model: "g" },
+  });
+  const broken = createStep({ name: "C", prompt: "" });
+  const settings = { enabled: false, requireApproval: true, steps: [first, last, broken] };
+
+  assert.equal(revisionStep(settings).name, "B");
+  assert.equal(revisionStep({ ...settings, steps: [broken] }), null);
+
+  const request = buildRevisionRequest(last);
+  assert.equal(request.model, "g");
+  assert.equal(request.config.provider, "gemini");
+  assert.ok(request.config.systemPrompt.includes("<instruction>"));
+  assert.ok(request.config.systemPrompt.includes("Sound corporate."));
+
+  const input = wrapRevisionInput("Hello team", "make it shorter");
+  assert.ok(input.includes("<draft>\nHello team\n</draft>"));
+  assert.ok(input.includes("<instruction>\nmake it shorter\n</instruction>"));
+});

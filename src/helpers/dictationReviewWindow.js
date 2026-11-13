@@ -8,16 +8,23 @@ const { WindowPositionUtil } = require("./windowConfig");
 // Review card for the rewrite chain (personal fork feature). It never takes
 // focus, so the app the user dictated into keeps it and the approved paste
 // lands where the caret was. Keys reach it through global shortcuts that exist
-// only while a review is open.
+// only while a review is open; the card decides what each key means, since R
+// (revise by voice) changes what Enter and Esc do while it listens.
 
 const WIDTH = 600;
 const INITIAL_HEIGHT = 260;
-const MAX_HEIGHT = 640;
-const BOTTOM_MARGIN = 140;
+const MAX_HEIGHT = 720;
+// Top centre of the primary display, a little below the menu bar.
+const TOP_OFFSET_RATIO = 0.06;
 const MAX_TIMEOUT_MS = 10 * 60 * 1000;
 
-const APPROVE_KEYS = ["Y", "Return"];
-const REJECT_KEYS = ["N", "Escape"];
+const KEY_ACTIONS = {
+  Y: "approve",
+  Return: "enter",
+  N: "reject",
+  Escape: "escape",
+  R: "revise",
+};
 
 class DictationReviewWindow {
   constructor() {
@@ -30,13 +37,26 @@ class DictationReviewWindow {
   registerIpc() {
     ipcMain.handle("dictation-review-request", (event, payload) => this.request(payload));
     ipcMain.handle("dictation-review-get", () => this._publicPayload());
-    ipcMain.handle("dictation-review-respond", (_event, id, approved) => {
+    ipcMain.handle("dictation-review-respond", (_event, id, approved, text) => {
       if (!this.pending || this.pending.id !== id) return { success: false };
+      if (typeof text === "string" && text.trim()) this.pending.finalText = text;
       this._finish(approved ? "approved" : "rejected");
       return { success: true };
     });
+    // A revision restarts the countdown, so time spent speaking never discards it.
+    ipcMain.handle("dictation-review-extend", (_event, id) => {
+      const pending = this.pending;
+      if (!pending || pending.id !== id) return null;
+      clearTimeout(pending.timer);
+      pending.deadline = Date.now() + pending.timeoutMs;
+      pending.timer = setTimeout(() => {
+        if (this.pending?.id === id) this._finish("timeout");
+      }, pending.timeoutMs);
+      return pending.deadline;
+    });
     ipcMain.handle("dictation-review-resize", (_event, id, height) => {
       if (!this.pending || this.pending.id !== id) return { success: false };
+      this.pending.rendererReady = true;
       this._place(height);
       this._reveal();
       return { success: true };
@@ -124,6 +144,7 @@ class DictationReviewWindow {
       deadline: Date.now() + timeoutMs,
       resolve,
       revealed: false,
+      rendererReady: false,
       timer: setTimeout(() => {
         if (this.pending?.id === id) this._finish("timeout");
       }, timeoutMs),
@@ -160,14 +181,13 @@ class DictationReviewWindow {
       120,
       Math.min(Math.ceil(Number(contentHeight) || INITIAL_HEIGHT), MAX_HEIGHT)
     );
-    const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
-    const area = display.workArea;
+    const area = screen.getPrimaryDisplay().workArea;
     const width = Math.min(WIDTH, area.width - 32);
     const x = Math.round(area.x + (area.width - width) / 2);
     const y = Math.round(
-      Math.max(
-        area.y + 16,
-        area.y + area.height - height - Math.min(BOTTOM_MARGIN, area.height / 5)
+      Math.min(
+        area.y + area.height * TOP_OFFSET_RATIO,
+        Math.max(area.y, area.y + area.height - height)
       )
     );
     win.setBounds({ x, y, width, height });
@@ -183,23 +203,30 @@ class DictationReviewWindow {
 
   _registerKeys(id) {
     this._unregisterKeys();
-    const bind = (keys, approved) => {
-      for (const key of keys) {
-        // A key some other feature holds right now (e.g. Esc during a recording)
-        // stays with it; the card's buttons still answer.
-        if (globalShortcut.isRegistered(key)) continue;
-        try {
-          const ok = globalShortcut.register(key, () => {
-            if (this.pending?.id === id) this._finish(approved ? "approved" : "rejected");
-          });
-          if (ok) this.registeredKeys.push(key);
-        } catch (error) {
-          debugLogger.warn("Review key not registered", { key, error: error.message }, "review");
-        }
+    for (const [key, action] of Object.entries(KEY_ACTIONS)) {
+      // A key some other feature holds right now (e.g. Esc during a recording)
+      // stays with it; the card's buttons still answer.
+      if (globalShortcut.isRegistered(key)) continue;
+      try {
+        const ok = globalShortcut.register(key, () => this._onKey(id, action));
+        if (ok) this.registeredKeys.push(key);
+      } catch (error) {
+        debugLogger.warn("Review key not registered", { key, error: error.message }, "review");
       }
-    };
-    bind(APPROVE_KEYS, true);
-    bind(REJECT_KEYS, false);
+    }
+  }
+
+  _onKey(id, action) {
+    const pending = this.pending;
+    if (!pending || pending.id !== id) return;
+    const win = this.win;
+    // Until the card has drawn, main answers the plain keys itself.
+    if (!pending.rendererReady || !win || win.isDestroyed()) {
+      if (action === "approve" || action === "enter") this._finish("approved");
+      else if (action === "reject" || action === "escape") this._finish("rejected");
+      return;
+    }
+    win.webContents.send("dictation-review-key", { id, action });
   }
 
   _unregisterKeys() {
@@ -226,7 +253,7 @@ class DictationReviewWindow {
       win.webContents.send("dictation-review-data", null);
     }
     debugLogger.info("Dictation review settled", { reason }, "review");
-    pending.resolve({ approved: reason === "approved", reason });
+    pending.resolve({ approved: reason === "approved", reason, text: pending.finalText });
   }
 
   dispose() {

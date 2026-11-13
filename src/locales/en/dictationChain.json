@@ -10,7 +10,19 @@
     "approve": "Paste",
     "reject": "Discard",
     "countdown": "Discards in {{seconds}}s",
-    "keysHint": "Y or Enter to paste · N or Esc to discard"
+    "keysHint": "Y paste · N discard · R revise by voice",
+    "revise": "Revise",
+    "listening": "Listening… say what to change",
+    "listeningHint": "R or Enter to finish · Esc to cancel",
+    "finishRevision": "Done",
+    "transcribing": "Transcribing your change…",
+    "revising": "Revising…",
+    "paused": "Paused",
+    "revisionLabel": "Revision: “{{instruction}}”",
+    "revisionFailed": "Revision failed: {{error}}",
+    "voiceFailed": "couldn't record or transcribe",
+    "voiceEmpty": "Nothing was heard, press R to try again.",
+    "voiceUnsupported": "your speech-to-text provider only streams and can't transcribe a revision. Pick a batch provider or local model."
   },
   "settings": {
     "tab": "Rewrite Chain",

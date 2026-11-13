@@ -1,5 +1,6 @@
 import type { ModelDefinition } from "../models/ModelRegistry";
 import type {
+  DictationReviewKeyAction,
   DictationReviewPayload,
   DictationReviewRequest,
   DictationReviewResult,
@@ -4089,7 +4090,15 @@ declare global {
       getDictationReviewData?: () => Promise<
         (DictationReviewRequest & { deadline: number }) | null
       >;
-      respondDictationReview?: (id: string, approved: boolean) => Promise<{ success: boolean }>;
+      respondDictationReview?: (
+        id: string,
+        approved: boolean,
+        text?: string
+      ) => Promise<{ success: boolean }>;
+      extendDictationReview?: (id: string) => Promise<number | null>;
+      onDictationReviewKey?: (
+        callback: (payload: { id: string; action: DictationReviewKeyAction }) => void
+      ) => () => void;
       resizeDictationReview?: (id: string, height: number) => Promise<{ success: boolean }>;
       onDictationReviewData?: (
         callback: (payload: (DictationReviewRequest & { deadline: number }) | null) => void

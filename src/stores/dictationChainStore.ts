@@ -94,6 +94,11 @@ export const useDictationChainStore = create<DictationChainState>()((set, get) =
   };
 });
 
+/** Straight from storage, for windows that may have missed a change event. */
+export function readDictationChainSettings(): DictationChainSettings {
+  return read();
+}
+
 export function getDictationChainSettings(): DictationChainSettings {
   return snapshot(useDictationChainStore.getState());
 }

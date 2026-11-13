@@ -1,6 +1,9 @@
 import ReasoningService from "./ReasoningService";
 import logger from "../utils/logger";
 import {
+  buildRevisionRequest,
+  revisionStep,
+  wrapRevisionInput,
   buildStepRequest,
   cleanStepOutput,
   runnableSteps,
@@ -82,6 +85,30 @@ export async function runDictationChain(
   return { text: current, stages, failedSteps };
 }
 
+/** Applies a spoken instruction to the current draft with the last step's model. */
+export async function reviseDictation(
+  draft: string,
+  instruction: string,
+  settings: DictationChainSettings,
+  agentName: string | null
+): Promise<string> {
+  const step = revisionStep(settings);
+  if (!step) throw new Error("No rewrite step is ready to revise with");
+  const { model, config } = buildRevisionRequest(step);
+  const reply = await ReasoningService.processText(
+    wrapRevisionInput(draft, instruction),
+    model,
+    agentName,
+    { ...config, busyWaitMs: STEP_MODEL_BUSY_WAIT_MS }
+  );
+  const revised = cleanStepOutput(reply || "")
+    .replace(/^<draft>\s*/i, "")
+    .replace(/\s*<\/draft>$/i, "")
+    .trim();
+  if (!revised) throw new Error("The model returned no text");
+  return revised;
+}
+
 export async function requestDictationReview(
   stages: ReviewStage[],
   finalText: string
@@ -131,5 +158,6 @@ export async function applyDictationChain(
 
   onReviewOpen?.();
   const review = await requestDictationReview(stages, run.text);
-  return { ran: true, text: run.text, rejected: !review.approved };
+  const text = typeof review.text === "string" && review.text.trim() ? review.text : run.text;
+  return { ran: true, text, rejected: !review.approved };
 }
