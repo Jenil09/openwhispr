@@ -1192,6 +1192,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
   updateDictationPreview: (text) => ipcRenderer.invoke("update-dictation-preview", text),
   completeDictationPreview: (payload) => ipcRenderer.invoke("complete-dictation-preview", payload),
   hideDictationPreview: () => ipcRenderer.invoke("hide-dictation-preview"),
+  requestDictationReview: (payload) => ipcRenderer.invoke("dictation-review-request", payload),
+  getDictationReviewData: () => ipcRenderer.invoke("dictation-review-get"),
+  respondDictationReview: (id, approved) =>
+    ipcRenderer.invoke("dictation-review-respond", id, approved),
+  resizeDictationReview: (id, height) => ipcRenderer.invoke("dictation-review-resize", id, height),
+  onDictationReviewData: registerListener(
+    "dictation-review-data",
+    (callback) => (_event, payload) => callback(payload)
+  ),
   sendDictationPreviewAudio: (data) => ipcRenderer.send("dictation-preview-audio", data),
   acquireRecordingLock: (pipeline) => ipcRenderer.invoke("acquire-recording-lock", pipeline),
   releaseRecordingLock: (pipeline) => ipcRenderer.invoke("release-recording-lock", pipeline),

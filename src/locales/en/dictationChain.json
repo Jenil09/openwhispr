@@ -1,0 +1,49 @@
+{
+  "review": {
+    "title": "Review before pasting",
+    "original": "You said",
+    "result": "Will paste",
+    "steps": "Steps",
+    "stepFailed": "Failed, kept the previous text: {{error}}",
+    "someFailed": "{{count}} step failed, the text before it is shown",
+    "someFailed_other": "{{count}} steps failed, the text before them is shown",
+    "approve": "Paste",
+    "reject": "Discard",
+    "countdown": "Discards in {{seconds}}s",
+    "keysHint": "Y or Enter to paste · N or Esc to discard"
+  },
+  "settings": {
+    "tab": "Rewrite Chain",
+    "title": "Rewrite chain",
+    "description": "After cleanup, run your dictation through your own rewrite steps, then review the result before it is pasted.",
+    "enabled": "Rewrite every dictation",
+    "enabledDescription": "Runs after Dictation Cleanup on normal dictations. Assistant commands, selection edits and translations are left alone.",
+    "requireApproval": "Review before pasting",
+    "requireApprovalDescription": "Shows a translucent card with the original and the rewrite. Y or Enter pastes, N or Esc discards (the dictation stays in History).",
+    "cleanupOffHint": "Dictation Cleanup is off, so the steps start from the raw transcript.",
+    "steps": "Steps",
+    "stepsDescription": "Steps run top to bottom; each one gets the previous step's output. Each step has its own model.",
+    "addStep": "Add step",
+    "noSteps": "No steps yet. Add one to start your chain.",
+    "noRunnableSteps": "The chain is on, but no step is ready to run, so dictations paste as before.",
+    "stepName": "Name",
+    "stepPrompt": "Instructions",
+    "stepPromptHelp": "Tell the model what to do with the text. The text is sent separately and treated as content, never as instructions.",
+    "stepEnabled": "Enabled",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "remove": "Remove step",
+    "model": "Model",
+    "problems": {
+      "noPrompt": "Add instructions for this step.",
+      "noModel": "Pick a model for this step.",
+      "noEndpoint": "Enter the server address for this step."
+    },
+    "test": {
+      "button": "Test step",
+      "placeholder": "Type sample text to run through this step…",
+      "running": "Running…",
+      "failed": "Failed: {{error}}"
+    }
+  }
+}

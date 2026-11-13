@@ -34,7 +34,15 @@ export function getDefaultPromptText(kind: PromptKind, uiLanguage?: string): str
 // transcript, where models weight instructions most. Mirrors api/reason.ts
 // in openwhispr-api.
 export function wrapCleanupTranscript(text: string): string {
-  return `<transcript>\n${text}\n</transcript>\n\nOutput only the cleaned transcript.`;
+  // Fork: a custom cleanup prompt may ask for more than cleanup (a format, a
+  // tone, a rewrite). The stock closing line re-anchors the model on plain
+  // cleanup right after the transcript and wins over those instructions, so a
+  // custom prompt gets a closing line that points back at its own instructions.
+  const hasCustomPrompt = !!useSettingsStore.getState().customPrompts?.cleanup?.trim();
+  const closing = hasCustomPrompt
+    ? "Apply the instructions above to the transcript. Output only the resulting text."
+    : "Output only the cleaned transcript.";
+  return `<transcript>\n${text}\n</transcript>\n\n${closing}`;
 }
 
 // Appended to the dictation-agent prompt only when a screenshot is attached.

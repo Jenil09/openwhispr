@@ -319,6 +319,7 @@ const TextEditMonitor = require("./src/helpers/textEditMonitor");
 const SelectionManager = require("./src/helpers/selectionManager");
 const { PermissionGuideManager } = require("./src/helpers/permissionGuideManager");
 const { AgentWindowManager } = require("./src/helpers/agentWindowManager");
+const { DictationReviewWindow } = require("./src/helpers/dictationReviewWindow");
 const WhisperCudaManager = require("./src/helpers/whisperCudaManager");
 const WhisperVulkanManager = require("./src/helpers/whisperVulkanManager");
 const {
@@ -702,6 +703,8 @@ function initializeCoreManagers() {
   windowManager.linuxKeyManager = linuxKeyManager;
   windowManager.permissionGuide = new PermissionGuideManager(windowManager);
   windowManager.agentWindow = new AgentWindowManager(windowManager);
+  windowManager.dictationReview = new DictationReviewWindow();
+  windowManager.dictationReview.registerIpc();
   if (process.platform === "linux") {
     windowManager.hotkeyManager.nativeListenerProbe = () => linuxKeyManager.checkAvailability();
   } else if (process.platform === "win32") {

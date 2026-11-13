@@ -40,6 +40,7 @@ import {
   Wand2,
   Upload,
   Languages,
+  ListOrdered,
 } from "./icons";
 import { useAuth } from "../hooks/useAuth";
 import { resetForAccountChange as resetChatForAccountChange } from "../stores/chatTurnStore";
@@ -100,6 +101,8 @@ import DeveloperSection from "./DeveloperSection";
 import ChatAgentSettings from "./settings/ChatAgentSettings";
 import DictationAgentSettings from "./settings/DictationAgentSettings";
 import DictationTranslationSettings from "./settings/DictationTranslationSettings";
+import DictationChainSettings from "./settings/DictationChainSettings";
+import { DICTATION_CHAIN_NS } from "../config/dictationChainI18n";
 import InferenceConfigEditor from "./settings/InferenceConfigEditor";
 import { MeetingTranscriptionPanel } from "./settings/MeetingSettings";
 import { UploadTranscriptionPanel } from "./settings/UploadSettings";
@@ -901,6 +904,7 @@ function AiModelsSection({ useCleanupModel, setUseCleanupModel, toast }: AiModel
 type SpeechTab = "dictation" | "noteRecording" | "upload";
 type LlmTab =
   | "dictationCleanup"
+  | "dictationChain"
   | "dictationAgent"
   | "dictationTranslation"
   | "noteFormatting"
@@ -909,6 +913,7 @@ type LlmTab =
 const SPEECH_TABS: SpeechTab[] = ["dictation", "noteRecording", "upload"];
 const LLM_TABS: LlmTab[] = [
   "dictationCleanup",
+  "dictationChain",
   "dictationAgent",
   "dictationTranslation",
   "noteFormatting",
@@ -1058,6 +1063,7 @@ function LlmsTabs({
 
   const subTabs = [
     { id: "dictationCleanup", name: t("settingsPage.llms.tabs.dictationCleanup") },
+    { id: "dictationChain", name: t("settings.tab", { ns: DICTATION_CHAIN_NS }) },
     { id: "dictationAgent", name: t("settingsPage.llms.tabs.dictationAgent") },
     { id: "dictationTranslation", name: t("settingsPage.llms.tabs.dictationTranslation") },
     { id: "noteFormatting", name: t("settingsPage.llms.tabs.noteFormatting") },
@@ -1077,12 +1083,16 @@ function LlmsTabs({
         renderIcon={(id) => {
           if (id === "dictationCleanup") return <Wand2 className="w-3.5 h-3.5" />;
           if (id === "dictationAgent") return <Sparkles className="w-3.5 h-3.5" />;
+          if (id === "dictationChain") return <ListOrdered className="w-3.5 h-3.5" />;
           if (id === "dictationTranslation") return <Languages className="w-3.5 h-3.5" />;
           if (id === "noteFormatting") return <BookOpen className="w-3.5 h-3.5" />;
           return <MessageSquare className="w-3.5 h-3.5" />;
         }}
       />
       <TabPanel active={tab === "dictationCleanup"}>{renderDictationCleanup()}</TabPanel>
+      <TabPanel active={tab === "dictationChain"}>
+        <DictationChainSettings />
+      </TabPanel>
       {agentAllowed && (
         <TabPanel active={tab === "dictationAgent"}>{renderDictationAgent()}</TabPanel>
       )}

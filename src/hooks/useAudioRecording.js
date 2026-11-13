@@ -5,6 +5,9 @@ import logger from "../utils/logger";
 import { playStartCue, playStopCue } from "../utils/dictationCues";
 import { getSettings } from "../stores/settingsStore";
 import { expandSnippets } from "../utils/snippets";
+import { chainIsActive } from "../config/dictationChain";
+import { getAgentName } from "../utils/agentName";
+import { getDictationChainSettings } from "../stores/dictationChainStore";
 import { getRecordingErrorTitle, getRecordingErrorDescription } from "../utils/recordingErrors";
 import { providerErrorActions } from "../utils/describeProviderError";
 import {
@@ -774,6 +777,43 @@ export const useAudioRecording = (toast, options = {}) => {
             result.text = expandSnippets(result.text, getSettings().snippets);
           }
 
+          // Rewrite chain (fork): cleanup -> rewrite steps -> Y/N review -> paste.
+          // Only plain dictations; assistant commands, selection edits and
+          // translations keep their own paths.
+          let chainRejected = false;
+          const chainSettings = getDictationChainSettings();
+          if (
+            chainIsActive(chainSettings) &&
+            !result.selectionEdit?.sessionId &&
+            !result.assistantConversation &&
+            !outlivedAccount &&
+            !lastStartOptionsRef.current?.translationRequested &&
+            localStorage.getItem("onboardingCompleted") === "true"
+          ) {
+            try {
+              // Loaded on demand: the chain's model plumbing stays out of the
+              // dictation window's startup when the feature is off.
+              const { applyDictationChain } = await import("../services/dictationChain");
+              const chain = await applyDictationChain(
+                result.text,
+                result.rawText ?? result.text,
+                chainSettings,
+                getAgentName() || null,
+                { onReviewOpen: () => window.electronAPI?.hideDictationPreview?.() }
+              );
+              if (chain.ran) {
+                result.text = chain.text;
+                chainRejected = chain.rejected;
+              }
+            } catch (error) {
+              logger.warn(
+                "Rewrite chain failed, pasting cleanup text",
+                { error: error?.message },
+                "reasoning"
+              );
+            }
+          }
+
           setTranscript(result.text);
           if (result.assistantConversation && outlivedAccount) {
             onDemoEventRef.current?.({
@@ -832,7 +872,8 @@ export const useAudioRecording = (toast, options = {}) => {
               status: "success",
               text: result.text,
             });
-            window.electronAPI?.completeDictationPreview?.({ text: result.text });
+            if (chainRejected) window.electronAPI?.hideDictationPreview?.();
+            else window.electronAPI?.completeDictationPreview?.({ text: result.text });
           }
 
           if (result.warning) {
@@ -1014,7 +1055,13 @@ export const useAudioRecording = (toast, options = {}) => {
           };
 
           let pasted = false;
-          if (pushForceStoppedRef.current && autoPasteEnabled && !result.assistantConversation) {
+          if (chainRejected) {
+            logger.info("Rewrite chain review declined, nothing pasted", {}, "clipboard");
+          } else if (
+            pushForceStoppedRef.current &&
+            autoPasteEnabled &&
+            !result.assistantConversation
+          ) {
             // The push hit its safety ceiling while the trigger keys were still
             // down. Injecting the paste shortcut into those held modifiers is
             // what silently loses the transcript, so keep it instead. Only macOS

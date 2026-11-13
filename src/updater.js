@@ -2,7 +2,11 @@ const { autoUpdater } = require("electron-updater");
 
 // electron-updater can only replace an AppImage on Linux; deb, rpm and tar.gz
 // installs are updated by the package manager instead.
-const isUpdaterSupported = process.platform !== "linux" || Boolean(process.env.APPIMAGE);
+// Fork: never auto-update. The official release would replace this build (and
+// its rewrite chain). Update by pulling upstream and rebuilding instead.
+const FORK_BUILD = true;
+const isUpdaterSupported =
+  !FORK_BUILD && (process.platform !== "linux" || Boolean(process.env.APPIMAGE));
 
 class UpdateManager {
   constructor() {

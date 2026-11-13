@@ -1,0 +1,68 @@
+# Personal fork build: an unsigned (ad-hoc signed) Apple Silicon OpenWhispr.app.
+# Run it from the Actions tab ("Fork macOS build" → Run workflow) and download
+# the zip from the run's Artifacts section.
+name: Fork macOS build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-build-mac-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-latest # Apple Silicon (arm64)
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile native helpers and download bundled binaries
+        run: npm run prebuild:mac
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Build renderer
+        run: npm run build:renderer
+        env:
+          VITE_AUTH_URL: https://auth.openwhispr.com
+          VITE_OPENWHISPR_API_URL: https://api.openwhispr.com
+
+      - name: Package app (unsigned)
+        run: >
+          npx electron-builder --mac dir --arm64 --publish never
+          -c.mac.identity=null
+          -c.mac.notarize=false
+          -c.mac.hardenedRuntime=false
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Ad-hoc sign
+        run: |
+          APP=$(ls -d dist/mac*/OpenWhispr.app | head -n1)
+          codesign --force --deep --sign - "$APP"
+          codesign --verify --deep --strict "$APP"
+          for bin in macos-globe-listener macos-fast-paste macos-mic-listener macos-text-monitor; do
+            test -x "$APP/Contents/Resources/bin/$bin" || { echo "Missing in bundle: $bin"; exit 1; }
+          done
+          # ditto keeps the framework symlinks that a plain artifact upload would break.
+          ditto -c -k --sequesterRsrc --keepParent "$APP" OpenWhispr-fork-arm64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenWhispr-fork-arm64
+          path: OpenWhispr-fork-arm64.zip
+          retention-days: 30
+          compression-level: 0

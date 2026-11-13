@@ -29,6 +29,7 @@ const isOnboardingInProgress = () =>
 const ControlPanel = React.lazy(() => import("./components/ControlPanel.tsx"));
 const OnboardingFlow = React.lazy(() => import("./components/OnboardingFlow.tsx"));
 const AgentWindow = React.lazy(() => import("./components/agent/AgentWindow.tsx"));
+const DictationReviewOverlay = React.lazy(() => import("./components/DictationReviewOverlay.tsx"));
 
 export default function AppRouter() {
   useTheme();
@@ -38,6 +39,14 @@ export default function AppRouter() {
 
   if (params.includes("meeting-notification=true")) {
     return <MeetingNotificationOverlay />;
+  }
+
+  if (params.includes("dictation-review=true")) {
+    return (
+      <Suspense fallback={null}>
+        <DictationReviewOverlay />
+      </Suspense>
+    );
   }
 
   // Before MainApp: it reports the onboarding state, which only the dictation

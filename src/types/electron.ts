@@ -1,4 +1,9 @@
 import type { ModelDefinition } from "../models/ModelRegistry";
+import type {
+  DictationReviewPayload,
+  DictationReviewRequest,
+  DictationReviewResult,
+} from "../config/dictationChain";
 import type { ReasoningConfig } from "../services/BaseReasoningService";
 import type { PermissionGuideState, PermissionGuideAction } from "./permissionGuide";
 import type { TinfoilCatalogModel } from "../models/tinfoilModels";
@@ -4080,6 +4085,15 @@ declare global {
       completeDictationPreview?: (payload: { text?: string }) => Promise<{ success: boolean }>;
       hideDictationPreview?: () => Promise<{ success: boolean }>;
       sendDictationPreviewAudio?: (data: ArrayBuffer) => void;
+      requestDictationReview?: (payload: DictationReviewPayload) => Promise<DictationReviewResult>;
+      getDictationReviewData?: () => Promise<
+        (DictationReviewRequest & { deadline: number }) | null
+      >;
+      respondDictationReview?: (id: string, approved: boolean) => Promise<{ success: boolean }>;
+      resizeDictationReview?: (id: string, height: number) => Promise<{ success: boolean }>;
+      onDictationReviewData?: (
+        callback: (payload: (DictationReviewRequest & { deadline: number }) | null) => void
+      ) => () => void;
 
       // Sync operations
       getPendingNotes?: (spaceKind?: "private" | "team") => Promise<NoteItem[]>;
