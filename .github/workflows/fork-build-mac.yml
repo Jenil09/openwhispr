@@ -49,11 +49,44 @@ jobs:
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 
-      - name: Ad-hoc sign
+      # Signs with the fork's own certificate (secrets FORK_SIGNING_P12_BASE64 and
+      # FORK_SIGNING_P12_PASSWORD) so every build has the same designated requirement
+      # and macOS keeps its Accessibility/Microphone grants across updates. Without
+      # the secrets it falls back to ad-hoc signing, which needs re-granting each build.
+      - name: Sign
+        env:
+          SIGNING_P12_BASE64: ${{ secrets.FORK_SIGNING_P12_BASE64 }}
+          SIGNING_P12_PASSWORD: ${{ secrets.FORK_SIGNING_P12_PASSWORD }}
         run: |
           APP=$(ls -d dist/mac*/OpenWhispr.app | head -n1)
-          codesign --force --deep --sign - "$APP"
+          SIGNED=""
+          if [ -n "$SIGNING_P12_BASE64" ]; then
+            KC="$RUNNER_TEMP/fork-signing.keychain-db"
+            P12="$RUNNER_TEMP/fork-signing.p12"
+            CERT="$RUNNER_TEMP/fork-signing.pem"
+            echo "$SIGNING_P12_BASE64" | base64 --decode > "$P12"
+            security create-keychain -p ci "$KC"
+            security set-keychain-settings -lut 3600 "$KC"
+            security unlock-keychain -p ci "$KC"
+            security import "$P12" -k "$KC" -P "$SIGNING_P12_PASSWORD" -T /usr/bin/codesign
+            security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k ci "$KC" > /dev/null
+            security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+            /usr/bin/openssl pkcs12 -in "$P12" -nokeys -passin env:SIGNING_P12_PASSWORD -out "$CERT"
+            # codesign only uses an identity trusted for code signing.
+            sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$CERT"
+            HASH=$(/usr/bin/openssl x509 -in "$CERT" -noout -fingerprint -sha1 | cut -d= -f2 | tr -d :)
+            if codesign --force --deep --sign "$HASH" --keychain "$KC" "$APP"; then
+              SIGNED=1
+            else
+              echo "::warning::Signing with the fork certificate failed; falling back to ad-hoc."
+            fi
+            rm -f "$P12"
+          else
+            echo "::warning::FORK_SIGNING_P12_BASE64 is not set; signing ad-hoc (permissions must be re-granted after installing)."
+          fi
+          [ -n "$SIGNED" ] || codesign --force --deep --sign - "$APP"
           codesign --verify --deep --strict "$APP"
+          codesign -dr - "$APP"
           for bin in macos-globe-listener macos-fast-paste macos-mic-listener macos-text-monitor; do
             test -x "$APP/Contents/Resources/bin/$bin" || { echo "Missing in bundle: $bin"; exit 1; }
           done
