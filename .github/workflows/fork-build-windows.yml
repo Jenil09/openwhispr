@@ -1,0 +1,71 @@
+# Personal fork build for Windows x64: an unsigned NSIS installer.
+# Run it from the Actions tab ("Fork Windows build" → Run workflow) and download
+# the installer from the run's Artifacts section. Windows SmartScreen warns on
+# unsigned installers: More info → Run anyway.
+name: Fork Windows build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-build-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      # The push-to-talk key listener is compiled from C with MSVC.
+      - name: Setup MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install platform-specific native binaries
+        run: npm install @rollup/rollup-win32-x64-msvc lightningcss-win32-x64-msvc @tailwindcss/oxide-win32-x64-msvc --no-save
+
+      - name: Compile native helpers and download bundled binaries
+        run: npm run prebuild:win
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Build renderer
+        run: npm run build:renderer
+        env:
+          VITE_AUTH_URL: https://auth.openwhispr.com
+          VITE_OPENWHISPR_API_URL: https://api.openwhispr.com
+
+      # The unsigned config drops upstream's Azure signing and the tray identity
+      # marker, which Windows binds to the executable's path when unsigned.
+      - name: Package installer (unsigned)
+        run: npx electron-builder --config electron-builder.unsigned-win.json --win nsis --x64 --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Verify native helpers
+        shell: bash
+        run: |
+          ls -lh dist/*.exe
+          for bin in windows-key-listener.exe windows-fast-paste.exe windows-mic-listener.exe nircmd.exe; do
+            test -f "dist/win-unpacked/resources/bin/$bin" || { echo "Missing in bundle: $bin"; exit 1; }
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenWhispr-fork-windows-x64
+          path: dist/*.exe
+          retention-days: 30
+          compression-level: 0

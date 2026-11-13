@@ -1,0 +1,17 @@
+{
+  "extends": "electron-builder.json",
+  "pacman": {
+    "afterInstall": "resources/linux/after-install.sh",
+    "depends": ["gtk3", "nss", "alsa-lib", "libxss", "libxtst", "at-spi2-core", "libpipewire"],
+    "fpm": [
+      "--pacman-optional-depends",
+      "wl-clipboard",
+      "--pacman-optional-depends",
+      "ydotool",
+      "--pacman-optional-depends",
+      "wtype",
+      "--pacman-optional-depends",
+      "xdotool"
+    ]
+  }
+}

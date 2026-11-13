@@ -1,0 +1,78 @@
+# Personal fork build for Linux x64: an AppImage (runs anywhere) and a pacman
+# package for Arch-based systems such as CachyOS (sudo pacman -U <file>.pacman).
+# Run it from the Actions tab ("Fork Linux build" → Run workflow) and download
+# the files from the run's Artifacts section.
+name: Fork Linux build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-build-linux-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    # 22.04's older glibc keeps the binaries loadable on newer distributions.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    env:
+      CFLAGS: "-march=x86-64 -mtune=generic"
+      CXXFLAGS: "-march=x86-64 -mtune=generic"
+      CC: clang-15
+      CXX: clang++-15
+      # afterPack refuses to run on CI without this; 0 skips upstream's
+      # old-CPU SQLite emulation check, which a personal build doesn't need.
+      OPENWHISPR_VERIFY_SQLITE_BASELINE: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install build and packaging dependencies
+        # libarchive-tools provides bsdtar, which the pacman packager needs.
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libxtst-dev libatspi2.0-dev libglib2.0-dev \
+            libpipewire-0.3-dev pkg-config libgtk-3-0 libnss3 libasound2 libarchive-tools
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install platform-specific native binaries
+        run: npm install @rollup/rollup-linux-x64-gnu lightningcss-linux-x64-gnu @tailwindcss/oxide-linux-x64-gnu --no-save
+
+      - name: Compile native helpers and download bundled binaries
+        run: npm run prebuild:linux
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Build renderer
+        run: npm run build:renderer
+        env:
+          VITE_AUTH_URL: https://auth.openwhispr.com
+          VITE_OPENWHISPR_API_URL: https://api.openwhispr.com
+
+      - name: Package AppImage and pacman package
+        run: >
+          npx electron-builder --config electron-builder.fork-linux.json
+          --linux AppImage pacman --x64 --publish never
+
+      - name: List packages
+        run: ls -lh dist/*.AppImage dist/*.pacman
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenWhispr-fork-linux-x64
+          path: |
+            dist/*.AppImage
+            dist/*.pacman
+          retention-days: 30
+          compression-level: 0
