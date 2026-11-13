@@ -55,6 +55,7 @@ export default function DictationReviewOverlay() {
   const [revising, setRevising] = useState(false);
   const [revisionError, setRevisionError] = useState<string | null>(null);
   const [showSteps, setShowSteps] = useState(false);
+  const [opacity, setOpacity] = useState(() => readDictationChainSettings().reviewOpacity);
   const cardRef = useRef<HTMLDivElement>(null);
   // Moves on with every new review or cancel, so a late revision is dropped.
   const revisionTokenRef = useRef(0);
@@ -127,6 +128,8 @@ export default function DictationReviewOverlay() {
     setRevising(false);
     setRevisionError(null);
     setShowSteps(false);
+    // Read per review, so a slider change in Settings applies to the next card.
+    setOpacity(readDictationChainSettings().reviewOpacity);
   }, []);
 
   useEffect(() => {
@@ -250,7 +253,12 @@ export default function DictationReviewOverlay() {
     <div className="dictation-review-window w-full select-none p-3">
       <div
         ref={cardRef}
-        className="overflow-hidden rounded-2xl border border-white/15 bg-background/80 text-foreground shadow-[0_8px_32px_rgba(0,0,0,0.28)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10"
+        // An Electron window can't blur the desktop behind it, so the card's
+        // legibility comes from its opacity alone.
+        style={{
+          backgroundColor: `color-mix(in oklab, var(--color-background) ${Math.round(opacity * 100)}%, transparent)`,
+        }}
+        className="overflow-hidden rounded-2xl border border-white/15 text-foreground shadow-[0_8px_32px_rgba(0,0,0,0.28)] dark:border-white/10"
       >
         <div className="flex items-center justify-between gap-3 px-4 pt-3 pb-2">
           <p className="text-[13px] font-semibold">{t("review.title")}</p>

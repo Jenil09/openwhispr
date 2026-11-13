@@ -34,7 +34,17 @@ export interface ChainStep {
 export interface DictationChainSettings {
   enabled: boolean;
   requireApproval: boolean;
+  /** Review card background opacity, 0.5–1. */
+  reviewOpacity: number;
   steps: ChainStep[];
+}
+
+export const REVIEW_OPACITY_MIN = 0.5;
+export const REVIEW_OPACITY_DEFAULT = 0.95;
+
+export function clampReviewOpacity(value: unknown): number {
+  const n = typeof value === "number" && Number.isFinite(value) ? value : REVIEW_OPACITY_DEFAULT;
+  return Math.round(Math.min(1, Math.max(REVIEW_OPACITY_MIN, n)) * 100) / 100;
 }
 
 export const DEFAULT_REWRITE_PROMPT =
@@ -75,6 +85,7 @@ export function createStep(partial: Partial<ChainStep> = {}): ChainStep {
 export const DEFAULT_CHAIN_SETTINGS: DictationChainSettings = {
   enabled: false,
   requireApproval: true,
+  reviewOpacity: REVIEW_OPACITY_DEFAULT,
   steps: [],
 };
 
@@ -118,6 +129,7 @@ export function normalizeChainSettings(raw: unknown): DictationChainSettings {
   return {
     enabled: bool(source.enabled, DEFAULT_CHAIN_SETTINGS.enabled),
     requireApproval: bool(source.requireApproval, DEFAULT_CHAIN_SETTINGS.requireApproval),
+    reviewOpacity: clampReviewOpacity(source.reviewOpacity),
     steps,
   };
 }

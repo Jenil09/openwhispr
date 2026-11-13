@@ -130,3 +130,12 @@ test("revision uses the last runnable step's model and keeps its style", async (
   assert.ok(input.includes("<draft>\nHello team\n</draft>"));
   assert.ok(input.includes("<instruction>\nmake it shorter\n</instruction>"));
 });
+
+test("review opacity defaults to 95% and stays within 50–100%", async () => {
+  const { normalizeChainSettings, clampReviewOpacity } = await load();
+  assert.equal(normalizeChainSettings({}).reviewOpacity, 0.95);
+  assert.equal(normalizeChainSettings({ reviewOpacity: 0.7 }).reviewOpacity, 0.7);
+  assert.equal(clampReviewOpacity(0.1), 0.5);
+  assert.equal(clampReviewOpacity(3), 1);
+  assert.equal(clampReviewOpacity("x"), 0.95);
+});

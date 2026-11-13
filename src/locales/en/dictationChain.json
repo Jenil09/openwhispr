@@ -56,6 +56,8 @@
       "placeholder": "Type sample text to run through this step…",
       "running": "Running…",
       "failed": "Failed: {{error}}"
-    }
+    },
+    "reviewOpacity": "Card opacity",
+    "reviewOpacityDescription": "How solid the review card's background is. Lower lets more of the screen show through; 100% is fully solid."
   }
 }

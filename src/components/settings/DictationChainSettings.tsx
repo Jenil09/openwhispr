@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp, Cpu, Key, Network, Plus, Trash2 } from "../icons";
 import { DICTATION_CHAIN_NS } from "../../config/dictationChainI18n";
 import {
+  DEFAULT_CHAIN_SETTINGS,
+  REVIEW_OPACITY_MIN,
   stepProblem,
   runnableSteps,
   type ChainStep,
@@ -135,7 +137,12 @@ function StepTester({ step }: { step: ChainStep }) {
     try {
       const result = await runDictationChain(
         sample.trim(),
-        { enabled: true, requireApproval: false, steps: [{ ...step, enabled: true }] },
+        {
+          ...DEFAULT_CHAIN_SETTINGS,
+          enabled: true,
+          requireApproval: false,
+          steps: [{ ...step, enabled: true }],
+        },
         getAgentName() || null
       );
       const stage = result.stages[0];
@@ -289,9 +296,11 @@ export default function DictationChainSettings() {
   const steps = useDictationChainStore((s) => s.steps);
   const setEnabled = useDictationChainStore((s) => s.setEnabled);
   const setRequireApproval = useDictationChainStore((s) => s.setRequireApproval);
+  const reviewOpacity = useDictationChainStore((s) => s.reviewOpacity);
+  const setReviewOpacity = useDictationChainStore((s) => s.setReviewOpacity);
   const addStep = useDictationChainStore((s) => s.addStep);
   const useCleanupModel = useSettingsStore((s) => s.useCleanupModel);
-  const runnable = runnableSteps({ enabled, requireApproval, steps }).length;
+  const runnable = runnableSteps({ enabled, requireApproval, reviewOpacity, steps }).length;
 
   return (
     <div className="space-y-4">
@@ -310,6 +319,30 @@ export default function DictationChainSettings() {
             <Toggle checked={requireApproval} onChange={setRequireApproval} />
           </SettingsRow>
         </SettingsPanelRow>
+        {requireApproval && (
+          <SettingsPanelRow>
+            <SettingsRow
+              label={t("settings.reviewOpacity")}
+              description={t("settings.reviewOpacityDescription")}
+            >
+              <div className="flex items-center gap-2">
+                <input
+                  type="range"
+                  min={Math.round(REVIEW_OPACITY_MIN * 100)}
+                  max={100}
+                  step={5}
+                  value={Math.round(reviewOpacity * 100)}
+                  onChange={(e) => setReviewOpacity(Number(e.target.value) / 100)}
+                  aria-label={t("settings.reviewOpacity")}
+                  className="w-32 accent-primary"
+                />
+                <span className="w-9 text-end text-xs tabular-nums text-muted-foreground">
+                  {Math.round(reviewOpacity * 100)}%
+                </span>
+              </div>
+            </SettingsRow>
+          </SettingsPanelRow>
+        )}
       </SettingsPanel>
 
       {enabled && !useCleanupModel && (

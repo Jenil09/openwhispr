@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  clampReviewOpacity,
   createStep,
   normalizeChainSettings,
   DEFAULT_CHAIN_SETTINGS,
@@ -37,6 +38,7 @@ function write(settings: DictationChainSettings): void {
 interface DictationChainState extends DictationChainSettings {
   setEnabled: (enabled: boolean) => void;
   setRequireApproval: (value: boolean) => void;
+  setReviewOpacity: (value: number) => void;
   addStep: () => void;
   removeStep: (id: string) => void;
   moveStep: (id: string, direction: -1 | 1) => void;
@@ -47,6 +49,7 @@ interface DictationChainState extends DictationChainSettings {
 const snapshot = (s: DictationChainSettings): DictationChainSettings => ({
   enabled: s.enabled,
   requireApproval: s.requireApproval,
+  reviewOpacity: s.reviewOpacity,
   steps: s.steps,
 });
 
@@ -61,6 +64,7 @@ export const useDictationChainStore = create<DictationChainState>()((set, get) =
     ...read(),
     setEnabled: (enabled) => commit({ enabled }),
     setRequireApproval: (requireApproval) => commit({ requireApproval }),
+    setReviewOpacity: (value) => commit({ reviewOpacity: clampReviewOpacity(value) }),
     addStep: () =>
       mapSteps((steps) => {
         // A new step starts on the previous step's model, the common case.
